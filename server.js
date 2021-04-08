@@ -29,15 +29,16 @@ connection.connect(function(err) {
     // console.log("connected as id " + connection.threadId + "\n");
 });
 
-//WELCOME
+//WELCOME TP THE SPORTS DOCTOR DIRECTORY
 welcome();
 function welcome() {
+    console.log('-----------------------------------------------------------------------------');
     console.log('-----------------------------------------------------------------------------');
     console.log('WELCOME TO THE SPORTS DOCTOR DIRECTORY');
     console.log("\n");
     console.log('USE ARROW KEYS TO NAVIGATE');
     console.log('-----------------------------------------------------------------------------');
-
+    console.log('-----------------------------------------------------------------------------');
 };
 
 //THE FIRST QUESTION PROMPTED
@@ -67,14 +68,14 @@ function initialQuestion() {
     });
 }
                                                                                        
-//VIEW ALL PATIENTS (TO DO)
+//VIEW ALL PATIENTS (DONE)
 function viewAllPatients() {
     connection.query(
-        `SELECT p.id, concat(p.first_name, ' ', p.last_name) AS Patient, concat(d.first_name, ' ', d.last_name) AS Doctor, h.pain_level, p.injury_location, i.injury_name, p.room_number
+        `SELECT p.id, concat(p.first_name, ' ', p.last_name) AS Patient, concat(d.first_name, ' ', d.last_name) AS Doctor, h.pain_level AS PainLevel, p.injury_location AS InjuryLocation, i.injury_name AS TypeOfInjury, p.room_number AS RoomNumber
         FROM sports_doctor_db.patient AS p 
         JOIN sports_doctor_db.doctor AS d ON p.doctor_id = d.id
         JOIN sports_doctor_db.pain AS h ON p.pain_id = h.id
-        JOIN sports_doctor_db.injury AS i on p.injury_id = i.id;`,
+        JOIN sports_doctor_db.department AS i on p.injury_id = i.id;`,
             function(err, res) {
                 if (err) throw err;
                 console.log("\n");
@@ -85,9 +86,9 @@ function viewAllPatients() {
 }
 
 //ADD NEW PATIENT (TO DO)
-
 function addNewPatient() {
-    //LIST OF PAIN LEVELS
+
+    //LIST OF PAIN LEVELS ARRAY
     let importPainLevel = [];
     connection.query(`SELECT * FROM sports_doctor_db.pain;`, (err,rows) => {
         if(err) throw err;
@@ -99,9 +100,9 @@ function addNewPatient() {
             importPainLevel.push(painObject)
         });
 
-    //LIST of Injury
+    //LIST of Injury ARRAY
     let importInjuryType = [];
-    connection.query(`SELECT * FROM sports_doctor_db.injury;`, (err,rows) => {
+    connection.query(`SELECT * FROM sports_doctor_db.department;`, (err,rows) => {
         if(err) throw err;
         rows.forEach((row) => {
             let injuryObject = { 
@@ -111,20 +112,7 @@ function addNewPatient() {
             importInjuryType.push(injuryObject)
         });
 
-    //LIST OF DOCTORS
-    let importDoctors = [];
-    connection.query(`SELECT d.id, concat(d.first_name, ' ', d.last_name) AS Doctor, h.department_name, i.injury_name  
-    FROM sports_doctor_db.doctor AS d
-    JOIN sports_doctor_db.department AS h ON d.department_id = h.id
-    JOIN sports_doctor_db.injury AS i ON d.department_id = i.id;`, (err,rows) => {
-        if(err) throw err;
-        rows.forEach((row) => {
-            let doctorObject = { 
-                name: row.Doctor, 
-                value: row.id
-            }
-            importDoctors.push(doctorObject)
-        });
+        //1st prompts to add new employee
         inquirer
         .prompt([ 
             {
@@ -158,32 +146,62 @@ function addNewPatient() {
                 name: "injury_name",
                 message: "What type of Injury?",
                 choices: importInjuryType
-            },
-            {
-                type: "list",
-                name: "doctor_name",
-                message: "Which Doctor will be assigned to this patient? (USE ARROW KEYS)",
-                choices: importDoctors
             }
-        ])
-        .then(answers => {
-            first_name = answers.first_name,
-            last_name = answers.last_name,
-            room_number = answers.room_number,
-            pain_level = answers.pain_level,
-            injury_location = answers.injury_location,
-            injury_name = answers.injury_name,
-            doctor_name = answers.doctor_name
-            connection.query(`INSERT INTO sports_doctor_db.patient (first_name,last_name,room_number,pain_id,injury_location,injury_id,doctor_id) VALUES ("${first_name}","${last_name}","${room_number}","${pain_level}","${injury_location}","${injury_name}","${doctor_name}")`,
-                function(err) {
+            ])
+            .then(answers => {
+                first_name = answers.first_name,
+                last_name = answers.last_name,
+                room_number = answers.room_number,
+                pain_level = answers.pain_level,
+                injury_location = answers.injury_location,
+                injury_name = answers.injury_name
+
+                // CREATE DOCTORS BASED OFF OF THE INJURY NAME. GRAB SPECIFIC DOCTORS
+                let importDoctors = [];
+                connection.query(`SELECT d.id, concat(d.first_name, ' ', d.last_name) AS Doctor  
+                FROM sports_doctor_db.doctor as d
+                WHERE d.department_id = "${injury_name}"`, (err,rows) => {
                     if(err) throw err;
-                    console.log("PATIENT ADDED!")
-                    initialQuestion();
-                }
-            );
-        });
+                    rows.forEach((row) => {
+                        let doctorObject = { 
+                            name: row.Doctor, 
+                            value: row.id
+                        }
+                        importDoctors.push(doctorObject)
+                    });
+                    //last prompt for doctors
+                    inquirer
+                    .prompt([ 
+                        {
+                            type: "list",
+                            name: "doctor_name",
+                            message: "Which Doctor would you like to see?",
+                            choices: importDoctors
+                        }
+                        ])
+                        //grab all answers from this prompt and the last ones about the patient
+                        .then(answers => {
+                            doctor_name = answers.doctor_name
+                            first_name = first_name,
+                            last_name = last_name,
+                            room_number = room_number,
+                            pain_level = pain_level,
+                            injury_location = injury_location,
+                            injury_name = injury_name
+                            connection.query(`INSERT INTO sports_doctor_db.patient (first_name,last_name,room_number,pain_id,injury_location,injury_id,doctor_id) VALUES ("${first_name}","${last_name}","${room_number}","${pain_level}","${injury_location}","${injury_name}","${doctor_name}")`,
+                            function(err) {
+                                if(err) throw err;
+                                console.log("PATIENT ADDED!")
+                                console.log("\n")
+                                initialQuestion();
+                            });
+                        });
+                });
+                // doctors = doctor_name;
+            });
+              
     });
     });
-    });
+    // });
 }
 
