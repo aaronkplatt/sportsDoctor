@@ -26,8 +26,19 @@ var connection = mysql.createConnection({
 //CONNECTION
 connection.connect(function(err) {
     if (err) throw err;
-    console.log("connected as id " + connection.threadId + "\n");
+    // console.log("connected as id " + connection.threadId + "\n");
 });
+
+//WELCOME
+welcome();
+function welcome() {
+    console.log('-----------------------------------------------------------------------------');
+    console.log('WELCOME TO THE SPORTS DOCTOR DIRECTORY');
+    console.log("\n");
+    console.log('USE ARROW KEYS TO NAVIGATE');
+    console.log('-----------------------------------------------------------------------------');
+
+};
 
 //THE FIRST QUESTION PROMPTED
 initialQuestion();
@@ -38,21 +49,20 @@ function initialQuestion() {
         {
             type: "list",
             name: "initialQuestion",
-            message: "Welcome to the Sports Doctor! How can I help you today?",
-            choices: ["Add a new Patient", "Remove a Patient", "View all Patients"]
+            message: "How can I help you today?",
+            choices: [ "View all Patients", "Add a new Patient", "Remove a Patient"]
         }
     ])
     .then(function(answers) {
         const initialQuestion = answers.initialQuestion;
-        if (initialQuestion === "Add a new Patient") {
-            // addNewPatient(); // to do
-            console.log("it worked!")
+        if (initialQuestion === "View all Patients") {
+            viewAllPatients(); // DONE
+        }
+        else if (initialQuestion === "Add a new Patient") {
+            addNewPatient(); // to do
         }
         else if (initialQuestion === "Remove a Patient") {
             removePatient(); // to do
-        }
-        else if (initialQuestion === "View all Patients") {
-            viewAllPatients(); // DONE
         }
     });
 }
@@ -71,6 +81,109 @@ function viewAllPatients() {
             console.table(res);
             //go back to inital
             initialQuestion();
+    });
+}
+
+//ADD NEW PATIENT (TO DO)
+
+function addNewPatient() {
+    //LIST OF PAIN LEVELS
+    let importPainLevel = [];
+    connection.query(`SELECT * FROM sports_doctor_db.pain;`, (err,rows) => {
+        if(err) throw err;
+        rows.forEach((row) => {
+            let painObject = { 
+                name: row.pain_level, 
+                value: row.id
+            }
+            importPainLevel.push(painObject)
+        });
+
+    //LIST of Injury
+    let importInjuryType = [];
+    connection.query(`SELECT * FROM sports_doctor_db.injury;`, (err,rows) => {
+        if(err) throw err;
+        rows.forEach((row) => {
+            let injuryObject = { 
+                name: row.injury_name, 
+                value: row.id
+            }
+            importInjuryType.push(injuryObject)
+        });
+
+    //LIST OF DOCTORS
+    let importDoctors = [];
+    connection.query(`SELECT d.id, concat(d.first_name, ' ', d.last_name) AS Doctor, h.department_name, i.injury_name  
+    FROM sports_doctor_db.doctor AS d
+    JOIN sports_doctor_db.department AS h ON d.department_id = h.id
+    JOIN sports_doctor_db.injury AS i ON d.department_id = i.id;`, (err,rows) => {
+        if(err) throw err;
+        rows.forEach((row) => {
+            let doctorObject = { 
+                name: row.Doctor, 
+                value: row.id
+            }
+            importDoctors.push(doctorObject)
+        });
+        inquirer
+        .prompt([ 
+            {
+                type: "input",
+                name: "first_name",
+                message: "What's the Patients First Name?"
+            },
+            {
+                type: "input",
+                name: "last_name",
+                message: "What's the Patients Last Name?"
+            },
+            {
+                type: "input",
+                name: "room_number",
+                message: "What's this Patients Room Number? (USE INTEGERS)"
+            },
+            {
+                type: "list",
+                name: "pain_level",
+                message: "What's this Patients Pain Level? (USE ARROW KEYS)",
+                choices: importPainLevel
+            },
+            {
+                type: "input",
+                name: "injury_location",
+                message: "What's this Patients Injury Location?"
+            },
+            {
+                type: "list",
+                name: "injury_name",
+                message: "What type of Injury?",
+                choices: importInjuryType
+            },
+            {
+                type: "list",
+                name: "doctor_name",
+                message: "Which Doctor will be assigned to this patient? (USE ARROW KEYS)",
+                choices: importDoctors
+            }
+        ])
+        .then(answers => {
+            first_name = answers.first_name,
+            last_name = answers.last_name,
+            room_number = answers.room_number,
+            pain_level = answers.pain_level,
+            injury_location = answers.injury_location,
+            injury_name = answers.injury_name,
+            doctor_name = answers.doctor_name
+            connection.query(`INSERT INTO sports_doctor_db.patient (first_name,last_name,room_number,pain_id,injury_location,injury_id,doctor_id) VALUES ("${first_name}","${last_name}","${room_number}","${pain_level}","${injury_location}","${injury_name}","${doctor_name}")`,
+                function(err) {
+                    if(err) throw err;
+                    console.log("PATIENT ADDED!")
+                    initialQuestion();
+                }
+            );
+        });
+    });
+    });
     });
 }
 
