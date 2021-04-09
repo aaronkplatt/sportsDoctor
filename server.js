@@ -51,7 +51,7 @@ function initialQuestion() {
             type: "list",
             name: "initialQuestion",
             message: "How can I help you today?",
-            choices: [ "View all Patients", "Add a new Patient", "Remove a Patient"]
+            choices: [ "View all Patients", "Add a new Patient", "Remove a Patient", "View All Doctors", "Add a New Doctor", "Remove a Doctor"]
         }
     ])
     .then(function(answers) {
@@ -60,10 +60,19 @@ function initialQuestion() {
             viewAllPatients(); // DONE
         }
         else if (initialQuestion === "Add a new Patient") {
-            addNewPatient(); // to do
+            addNewPatient(); // DONE
         }
         else if (initialQuestion === "Remove a Patient") {
-            removePatient(); // to do
+            removePatient(); // DONE
+        }
+        else if (initialQuestion === "View All Doctors") {
+            viewAllDoctors(); // DONE
+        }
+        else if (initialQuestion === "Add a New Doctor") {
+            addNewDoctor(); // to do
+        }
+        else if (initialQuestion === "Remove a Doctor") {
+            removeDoctor(); // to do
         }
     });
 }
@@ -85,9 +94,8 @@ function viewAllPatients() {
     });
 }
 
-//ADD NEW PATIENT (TO DO)
+//ADD NEW PATIENT (DONE)
 function addNewPatient() {
-
     //LIST OF PAIN LEVELS ARRAY
     let importPainLevel = [];
     connection.query(`SELECT * FROM sports_doctor_db.pain;`, (err,rows) => {
@@ -99,7 +107,6 @@ function addNewPatient() {
             }
             importPainLevel.push(painObject)
         });
-
     //LIST of Injury ARRAY
     let importInjuryType = [];
     connection.query(`SELECT * FROM sports_doctor_db.department;`, (err,rows) => {
@@ -111,10 +118,8 @@ function addNewPatient() {
             }
             importInjuryType.push(injuryObject)
         });
-
-        //1st prompts to add new employee
         inquirer
-        .prompt([ 
+        .prompt([ //1st prompts to add new employee
             {
                 type: "input",
                 name: "first_name",
@@ -154,7 +159,7 @@ function addNewPatient() {
                 room_number = answers.room_number,
                 pain_level = answers.pain_level,
                 injury_location = answers.injury_location,
-                injury_name = answers.injury_name
+                injury_name = answers.injury_name //GRABBING THIS FOR DOCTORS
 
                 // CREATE DOCTORS BASED OFF OF THE INJURY NAME. GRAB SPECIFIC DOCTORS
                 let importDoctors = [];
@@ -169,9 +174,8 @@ function addNewPatient() {
                         }
                         importDoctors.push(doctorObject)
                     });
-                    //last prompt for doctors
                     inquirer
-                    .prompt([ 
+                    .prompt([ //last prompt for doctors
                         {
                             type: "list",
                             name: "doctor_name",
@@ -197,11 +201,147 @@ function addNewPatient() {
                             });
                         });
                 });
-                // doctors = doctor_name;
-            });
-              
+            });   
     });
     });
-    // });
 }
 
+//REMOVE A PATIENT (DONE)
+function removePatient() {
+    let importPatientArray = [];
+    connection.query(`SELECT id, concat(first_name, ' ', last_name) AS Name FROM sports_doctor_db.patient;`, (err,rows) => {
+        if(err) throw err;
+        rows.forEach((row) => {
+            let patients = {
+                name: row.Name,
+                value: row.id
+            };
+            importPatientArray.push(patients);
+        });
+        inquirer
+        .prompt([
+            {
+                type: "list",
+                name: "removePatient",
+                message: "Which Patient would you like to Remove?",
+                choices: importPatientArray
+            }
+        ])
+        .then(answers => {
+            const removePatient = answers.removePatient
+            connection.query(
+            `DELETE FROM sports_doctor_db.patient WHERE id = "${removePatient}";`,
+         function(err, res) {
+            if (err) throw err;
+            console.log("PATIENT REMOVED!");
+            console.log("\n");
+            //go back to inital
+            initialQuestion();
+        });
+    });
+    });
+}
+
+//VIEW ALL DOCTORS (DONE)
+function viewAllDoctors() {
+    connection.query(
+        `SELECT p.id, concat(p.first_name, ' ', p.last_name) AS Name, d.department_name AS Department, d.injury_name AS InjuryType
+        FROM sports_doctor_db.doctor as p
+        JOIN sports_doctor_db.department as d ON p.department_id = d.id;`,
+            function(err, res) {
+                if (err) throw err;
+                console.log("\n");
+            console.table(res);
+            //go back to inital
+            initialQuestion();
+    });
+}
+
+//ADD NEW DOCTOR (DONE)
+function addNewDoctor() {
+    //LIST OF PAIN LEVELS ARRAY
+    let importDepartments = [];
+    connection.query(`SELECT id, department_name FROM sports_doctor_db.department;`, (err,rows) => {
+        if(err) throw err;
+        rows.forEach((row) => {
+            let departmentObject = { 
+                name: row.department_name, 
+                value: row.id
+            }
+            importDepartments.push(departmentObject)
+        });
+    inquirer
+    .prompt([
+        {
+            type: "input",
+            name: "first_name",
+            message: "What is the Doctor's First Name?"
+        },
+        {
+            type: "input",
+            name: "last_name",
+            message: "What is the Doctor's Last Name?"
+        },
+        {
+            type: "list",
+            name: "department",
+            message: "In Which Department does this Doctor Work?",
+            choices: importDepartments
+        }
+    ])
+    .then(answers => {
+        const first_name = answers.first_name
+        const last_name = answers.last_name
+        const department = answers.department
+
+        connection.query(`INSERT INTO sports_doctor_db.doctor (first_name, last_name, department_id)
+        VALUES ("${first_name}","${last_name}","${department}")`,
+            function(err) {
+                if(err) throw err;
+                console.log("DOCTOR ADDED!")
+                console.log("\n");
+                initialQuestion();
+            }
+        );
+    });  
+    });
+}
+
+//REMOVE A DOCTOR (TO DO) LET ME GO NULL
+function removeDoctor() {
+    let importDoctorArray = [{
+        name: "null",
+        value: 0
+    }];
+    connection.query(`SELECT id, concat(first_name, ' ', last_name) AS Name FROM sports_doctor_db.doctor;`, (err,rows) => {
+        if(err) throw err;
+        rows.forEach((row) => {
+            let doctors = {
+                name: row.Name,
+                value: row.id
+            };
+            importDoctorArray.push(doctors);
+        });
+        inquirer
+        .prompt([
+            {
+                type: "list",
+                name: "removeDoctor",
+                message: "Which Doctor would you like to Remove?",
+                choices: importDoctorArray
+            }
+        ])
+        .then(answers => {
+            const removeDoctor = answers.removeDoctor
+            connection.query(
+            `DELETE FROM sports_doctor_db.doctor WHERE id = "${removeDoctor}";`,
+         function(err, res) {
+            if (err) throw err;
+            console.log("DOCTOR REMOVED!");
+            console.log("\n");
+            //go back to inital
+            initialQuestion();
+        });
+    });
+    });
+}
