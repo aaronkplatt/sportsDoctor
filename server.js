@@ -51,7 +51,7 @@ function initialQuestion() {
             type: "list",
             name: "initialQuestion",
             message: "How can I help you today?",
-            choices: [ "View all Patients", "Add a new Patient", "Remove a Patient", "View All Doctors", "Add a New Doctor", "Remove a Doctor"]
+            choices: [ "View all Patients", "Add a new Patient", "Remove a Patient", "View All Doctors", "Add a New Doctor", "Remove a Doctor", "Waiting List"]
         }
     ])
     .then(function(answers) {
@@ -69,20 +69,24 @@ function initialQuestion() {
             viewAllDoctors(); // DONE
         }
         else if (initialQuestion === "Add a New Doctor") {
-            addNewDoctor(); // to do
+            addNewDoctor(); // DONE
         }
         else if (initialQuestion === "Remove a Doctor") {
-            removeDoctor(); // to do
+            removeDoctor(); // DONE
+        }
+        else if (initialQuestion === "Waiting List") {
+            waitingList(); // TO DO
         }
     });
 }
                                                                                        
 //VIEW ALL PATIENTS (DONE)
 function viewAllPatients() {
+    //Left join is used so we can get a null doctor
     connection.query(
         `SELECT p.id, concat(p.first_name, ' ', p.last_name) AS Patient, concat(d.first_name, ' ', d.last_name) AS Doctor, h.pain_level AS PainLevel, p.injury_location AS InjuryLocation, i.injury_name AS TypeOfInjury, p.room_number AS RoomNumber
         FROM sports_doctor_db.patient AS p 
-        JOIN sports_doctor_db.doctor AS d ON p.doctor_id = d.id
+        LEFT JOIN sports_doctor_db.doctor AS d ON p.doctor_id = d.id
         JOIN sports_doctor_db.pain AS h ON p.pain_id = h.id
         JOIN sports_doctor_db.department AS i on p.injury_id = i.id;`,
             function(err, res) {
@@ -162,7 +166,11 @@ function addNewPatient() {
                 injury_name = answers.injury_name //GRABBING THIS FOR DOCTORS
 
                 // CREATE DOCTORS BASED OFF OF THE INJURY NAME. GRAB SPECIFIC DOCTORS
-                let importDoctors = [];
+                // Create a null for no doctor (TO DO)
+                let importDoctors = [{
+                    name: "null",
+                    value: 0
+                }];
                 connection.query(`SELECT d.id, concat(d.first_name, ' ', d.last_name) AS Doctor  
                 FROM sports_doctor_db.doctor as d
                 WHERE d.department_id = "${injury_name}"`, (err,rows) => {
@@ -179,7 +187,7 @@ function addNewPatient() {
                         {
                             type: "list",
                             name: "doctor_name",
-                            message: "Which Doctor would you like to see?",
+                            message: "Which Doctor would you like to see? (NULL puts them on the waiting list)",
                             choices: importDoctors
                         }
                         ])
@@ -307,12 +315,9 @@ function addNewDoctor() {
     });
 }
 
-//REMOVE A DOCTOR (TO DO) LET ME GO NULL
+//REMOVE A DOCTOR, IF DOCTOR HAS PATIENT< THEY GO TO THE WAITING LIST
 function removeDoctor() {
-    let importDoctorArray = [{
-        name: "null",
-        value: 0
-    }];
+    let importDoctorArray = [];
     connection.query(`SELECT id, concat(first_name, ' ', last_name) AS Name FROM sports_doctor_db.doctor;`, (err,rows) => {
         if(err) throw err;
         rows.forEach((row) => {
@@ -343,5 +348,23 @@ function removeDoctor() {
             initialQuestion();
         });
     });
+    });
+}
+
+//WAITING LIST
+function waitingList(){
+    //Left join is used so we can get a null doctor
+    connection.query(
+        `SELECT p.id, concat(p.first_name, ' ', p.last_name) AS Patient, p.doctor_id, h.pain_level AS PainLevel, p.injury_location AS InjuryLocation, i.injury_name AS TypeOfInjury, p.room_number AS RoomNumber
+        FROM sports_doctor_db.patient AS p 
+        JOIN sports_doctor_db.pain AS h ON p.pain_id = h.id
+        JOIN sports_doctor_db.department AS i on p.injury_id = i.id
+        WHERE p.doctor_id IS null;`,
+            function(err, res) {
+                if (err) throw err;
+                console.log("\n");
+            console.table(res);
+            //go back to inital
+            initialQuestion();
     });
 }
